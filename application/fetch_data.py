@@ -19,7 +19,8 @@ db = mongodb_client.db
 def fetch_anime_data(urls):
     anime_data = []
     for idx, url in enumerate(urls):
-        r = requests.get(url)
+        url_to_download = url
+        r = requests.get(url_to_download)
 
         try:
             data = r.json()["data"]
@@ -47,6 +48,8 @@ def fetch_anime_data(urls):
             print(f"ANIME #{idx+1} DOWNLOADED!")
         except Exception as e:
             print(f"There was an exception with the request {e.__class__}")
+            with open("anime_download_error", "a") as f:
+                f.write(str(url_to_download) + "\n")
         sleep(1)
 
     return anime_data

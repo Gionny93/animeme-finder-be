@@ -1,6 +1,8 @@
 from functools import wraps
 from flask import jsonify
+from bson import json_util
 from application import log_info
+import json
 
 def handle_exceptions(f):
     @wraps(f)
@@ -12,3 +14,7 @@ def handle_exceptions(f):
             return jsonify({"error": "An error occurred while processing the request"}), 500
 
     return func
+
+
+def parse_json(data):
+    return json.loads(json_util.dumps(data))

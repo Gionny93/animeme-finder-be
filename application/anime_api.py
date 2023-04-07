@@ -1,13 +1,12 @@
 from application import app, db, fetch_data, utils, log_info, status_dict, api_version
 from flask import request, jsonify
-from bson import json_util, ObjectId
-import json
 import asyncio
-from application.utils import handle_exceptions
+from application.utils import handle_exceptions, parse_json
 from flask_login import login_required, current_user
 
 # API used by frontend to fetch recommended anime and other anime related actions
 
+# TODO - JWT token instead of user_id in Authorization - Sessions timeout
 
 # /login call returns the user_id which is needed by the frontend to call protected apis, 
 # example curl -H "Authorization: 642f302de82db80238da927c" 
@@ -20,78 +19,62 @@ from flask_login import login_required, current_user
 def add_anime_list():
     # body json format expected [{"tile": title1, "score", 10, "user": user}, ...]
 
-    log_info(f"CURRENT USER -> {current_user}")
-
-    if not current_user:
-        return jsonify({"error": "Unauthorized"}), status_dict["UNAUTHORIZED"]
-
-    response = request.get_json()
+    req = request.get_json()
 
     if request.method == "POST":
 
-        # existing_user_list = db.user_anime_list.find_one({"user_id": logged_in_user_id})
+        existing_user_list = db.user_anime_list.find_one({"user_id": current_user.username})
 
-        # if existing_user_list:
-        #     return jsonify({"message": "You have already added your anime list"}), status_dict["KO"]
+        if existing_user_list:
+            return jsonify({"message": "You have already added your anime list"}), status_dict["KO"]
 
-        db.user_anime_list.insert_many(response)
+        db.user_anime_list.insert_many(req)
         return jsonify({"message": "Anime list added successfully"}), status_dict["OK"]
 
     if request.method == "PUT":
-        for anime in response:
+        for anime in req:
             title = anime["title"]
             updated_data = {"$set": anime}
             db.user_anime_list.update_many({"title": title}, updated_data)
         return jsonify({"message": "Anime list updated successfully"}), status_dict["OK"]
 
-@app.route("/")
-
-
-
-
-# @app.route("/anime_data")
-# def populate_db_all_anime():
-
-#     f = open("anime_cache.json")
-
-#     cache_data = json.load(f)
-
-#     all_data = cache_data['sfw'] + cache_data['nsfw']
-
-#     f.close()
-
-#     all_anime_ids_chunks = utils.chunks([f"https://api.jikan.moe/v4/anime/{anime_id}/full" for anime_id in all_data], 60)
-
-#     for idx, chunk in enumerate(all_anime_ids_chunks):
-#         anime_data = fetch_data.fetch_anime_data(chunk)
-
-#         print(f"Inserting DB... chunk #{idx+1}")
-
-#         try:
-#             db.anime_list.insert_many(parse_json(anime_data))
-#         except:
-#             print(f"chunk # {idx+1} has problems!")
-            
-
-#     # loop = asyncio.new_event_loop()
-#     # anime_data = loop.run_until_complete(fetch_data.fetch_anime_data(episodes))
-#     # loop.close()
-
-
-#     return {"status": "OK"}
 
 @app.route(f"/api/v{api_version}/search_anime/<anime_name>") 
+@login_required
+@handle_exceptions
 def get_anime(anime_name):
-    return parse_json(db.anime_list_test.find({"title": anime_name}, {"_id": 0}))
+    return parse_json(db.anime_list.find({"title": anime_name}, {"_id": 0}))
 
-@app.route(f"/api/v{api_version}/add_watchlist", methods=["POST"])
+
+@app.route(f"/api/v{api_version}/watchlist", methods=["POST", "DELETE"])
+@login_required
+@handle_exceptions
 def add_anime_to_watchlist():
-    response = request.get_json()
-    db.test_flask.insert_one({
-        "name": response["name"],
-        "surname": "LUL"
-    })
-    return response
+    # request [{"anime_name": name}], post is probably going to be just 1, but delete can vary, maybe add frontend functionality to select anime to delete from user profile
 
-def parse_json(data):
-    return json.loads(json_util.dumps(data))
+    req = request.get_json()
+
+    if request.method == "POST":
+        db.user_anime_watchlist.insert_many(req)
+        return jsonify({"message": "Anime watchlist updated successfully"}), status_dict["OK"]
+
+    if request.method == "DELETE":
+        anime_names_to_delete = [element["anime_name"] for element in req]
+        db.user_anime_watchlist.delete_many({"anime_name": {"$in": anime_names_to_delete}})
+        return jsonify({"message": "Anime watchlist updated successfully"}), status_dict["OK"]
+
+
+@handle_exceptions
+@app.route(f"/api/v{api_version}/user-list/<user>", methods=["GET"])
+def get_user_list(user):
+    distinct_pipeline = [
+    {"$match": {"user": user}},
+    {"$group": {
+        "_id": "$title",
+        "doc": {"$first": "$$ROOT"}
+    }},
+    {"$replaceRoot": {"newRoot": "$doc"}},
+    {"$project": {"_id": 0, "user": 0}}
+]
+    return parse_json(db.user_anime_list.aggregate(distinct_pipeline))
+
