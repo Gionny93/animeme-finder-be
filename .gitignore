@@ -1,0 +1,7 @@
+application/__pycache__
+venv/
+__pycache__
+env*
+*cache*
+*/*cache*/
+*_error
