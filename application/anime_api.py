@@ -9,7 +9,7 @@ from flask_login import login_required, current_user
 # TODO - JWT token instead of user_id in Authorization - Sessions timeout
 
 # /login call returns the user_id which is needed by the frontend to call protected apis, 
-# example curl -H "Authorization: 642f302de82db80238da927c" 
+# example curl -H "Authorization: 642f302de82db80238xxxx" 
 #              -d '[{"title": "test1", "score": 4, "user": "gionny"}, {"title": "test2", "score": 8, "user": "gionny"}]' 
 #              -H "Content-Type: application/json" -X POST http://127.0.0.1:5000/api/v1/anime-list
 
