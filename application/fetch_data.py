@@ -50,7 +50,7 @@ def fetch_anime_data(urls):
             print(f"There was an exception with the request {e.__class__}")
             with open("anime_download_error", "a") as f:
                 f.write(str(url_to_download) + "\n")
-        sleep(1)
+        sleep(2)
 
     return anime_data
     

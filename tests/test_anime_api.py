@@ -1,31 +1,32 @@
 import unittest
 from application import app, db
 import json
-
-
-def login_user(client, username, password):
-    response = client.post(
-        "/api/v1/login",
-        json={"username": username, "password": password},
-        content_type="application/json",
-    )
-    return response.json["user_id"]
+import os
 
 class TestApp(unittest.TestCase):
 
     def setUp(self):
         self.client = app.test_client()
-        self.user_id = login_user(self.client, "test_user", "test_pass")
+        self.user = os.getenv("TEST_USER")
+        self.password = os.getenv("TEST_PASS")
+        self.user_id = self._login_user(self.client, self.user, self.password)
 
     def tearDown(self):
         pass
 
-    def test_add_anime_list(self):
+    def _login_user(self, client, username, password):
+        response = client.post(
+            "/api/v1/login",
+            json={"username": username, "password": password},
+            content_type="application/json",
+        )
+        return response.json["user_id"]
 
+    def test_add_anime_list(self):
         # Test adding anime list
         response = self.client.post(
             "/api/v1/anime-list",
-            json=[{"title": "test1", "score": 4, "user": "test_user"}],
+            json=[{"title": "test1", "score": 4, "user": self.user}],
             headers={"Authorization": self.user_id},
             content_type="application/json",
         )
@@ -35,7 +36,7 @@ class TestApp(unittest.TestCase):
         # Test add_anime_list PUT request
         response = self.client.put(
             '/api/v1/anime-list',
-            json=[{"title": "test1", "score": 8, "user": "test_user"}],
+            json=[{"title": "test1", "score": 8, "user": self.user}],
             headers={"Authorization": self.user_id},
             content_type='application/json'
         )
